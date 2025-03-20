@@ -38,6 +38,7 @@ typedef enum {
     kyberKey = 9,
     edKey = 10,
     ecMontKey = 11,
+    mldsaKey =12,
 } KeyType;
 
 /*
@@ -189,6 +190,17 @@ struct SECKEYKyberPublicKeyStr {
 typedef struct SECKEYKyberPublicKeyStr SECKEYKyberPublicKey;
 
 /*
+** Ml-DSA Public Key structure
+*/
+
+struct SECKEYMLDSAPublicKeyStr {
+    int size;                 /* size in bits */
+    SECItem publicValue;
+};
+typedef struct SECKEYMLDSAPublicKeyStr SECKEYMLDSAPublicKey;
+
+
+/*
 ** A Generic  public key object.
 */
 struct SECKEYPublicKeyStr {
@@ -204,6 +216,7 @@ struct SECKEYPublicKeyStr {
         SECKEYFortezzaPublicKey fortezza;
         SECKEYECPublicKey ec;
         SECKEYKyberPublicKey kyber;
+        SECKEYMLDSAPublicKey mldsa;
     } u;
 };
 typedef struct SECKEYPublicKeyStr SECKEYPublicKey;
