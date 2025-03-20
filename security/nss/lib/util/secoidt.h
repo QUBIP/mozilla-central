@@ -536,6 +536,9 @@ typedef enum {
 
     SEC_OID_TLS_REQUIRE_EMS = 390,
 
+    SEC_OID_MLDSA65_SIGNATURE = 391,
+    SEC_OID_MLDSA65_PUBLIC_KEY = 392,
+    
     SEC_OID_TOTAL
 } SECOidTag;
 

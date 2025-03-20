@@ -2588,4 +2588,7 @@ typedef CK_X2RATCHET_RESPOND_PARAMS
 /* undo packing */
 #include "pkcs11u.h"
 
+/* QUBIP Specific defines */
+#include "pkcs11qubip.h"
+
 #endif

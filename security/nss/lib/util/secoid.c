@@ -679,6 +679,9 @@ CONST_OID x25519PublicKey[] = { 0x2b, 0x65, 0x6e };
 #define FAKE_SUPPORTED_CERT_EXTENSION UNSUPPORTED_CERT_EXTENSION
 #endif
 
+/* Include QUBIP specific OID definitions */
+#include "secoid_qubip.c"
+
 /*
  * NOTE: the order of these entries must mach the SECOidTag enum in secoidt.h!
  */
@@ -1901,6 +1904,10 @@ const static SECOidData oids[SEC_OID_TOTAL] = {
     ODE(SEC_OID_TLS_REQUIRE_EMS,
         "TLS Require EMS", CKM_INVALID_MECHANISM, INVALID_CERT_EXTENSION),
 
+    OD(mlDsa65Signature, SEC_OID_MLDSA65_SIGNATURE, "id-ml-dsa-65 signature", CKM_ML_DSA,
+         INVALID_CERT_EXTENSION),
+    OD(mlDsa65PublicKey, SEC_OID_MLDSA65_PUBLIC_KEY, "id-ml-dsa-65 public key", CKM_ML_DSA_KEYGEN,
+         INVALID_CERT_EXTENSION),
 };
 
 /* PRIVATE EXTENDED SECOID Table

@@ -50,7 +50,10 @@
             'utilmodt.h',
             'utilpars.h',
             'utilparst.h',
-            'utilrename.h'
+            'utilrename.h',
+            'pkcs11qubip.h',
+            'utilmodt_qubip.h',
+            'secoid_qubip.c',
           ],
           'destination': '<(nss_public_dist_dir)/<(module)'
         },
