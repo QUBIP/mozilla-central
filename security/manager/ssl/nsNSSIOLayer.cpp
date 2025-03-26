@@ -1300,6 +1300,7 @@ static PRFileDesc* nsSSLIOLayerImportFD(PRFileDesc* fd,
 // Please change getSignatureName in nsNSSCallbacks.cpp when changing the list
 // here. See NOTE at SSL_SignatureSchemePrefSet call site.
 static const SSLSignatureScheme sEnabledSignatureSchemes[] = {
+    ssl_sig_mldsa65,
     ssl_sig_ecdsa_secp256r1_sha256,
     ssl_sig_ecdsa_secp384r1_sha384,
     ssl_sig_ecdsa_secp521r1_sha512,

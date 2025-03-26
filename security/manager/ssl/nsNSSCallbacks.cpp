@@ -723,6 +723,9 @@ nsCString getSignatureName(uint32_t aSignatureScheme) {
     case ssl_sig_rsa_pkcs1_sha1md5:
       signatureName = "RSA-PKCS1-SHA1MD5"_ns;
       break;
+    case ssl_sig_mldsa65:
+      signatureName = "ML-DSA-65"_ns;
+      break;
     // All other groups are not enabled in Firefox. See sEnabledSignatureSchemes
     // in nsNSSIOLayer.cpp.
     default:
