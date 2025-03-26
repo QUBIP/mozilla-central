@@ -107,7 +107,7 @@ typedef enum {
     ssl_sign_null = 0, /* "anonymous" in TLS */
     ssl_sign_rsa = 1,
     ssl_sign_dsa = 2,
-    ssl_sign_ecdsa = 3
+    ssl_sign_ecdsa = 3,
 } SSLSignType;
 
 /* Values of this enum match the HashAlgorithm enum from
@@ -155,6 +155,9 @@ typedef enum {
     ssl_sig_dsa_sha384 = 0x0502,
     ssl_sig_dsa_sha512 = 0x0602,
     ssl_sig_ecdsa_sha1 = 0x0203,
+
+    // add support for ML-DSA-65
+    ssl_sig_mldsa65 = 0x0905,
 
     /* The following value (which can't be used in the protocol), represents
      * the RSA signature using SHA-1 and MD5 that is used in TLS 1.0 and 1.1.

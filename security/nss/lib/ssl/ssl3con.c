@@ -191,6 +191,7 @@ static ssl3CipherSuiteCfg cipherSuites[ssl_V3_SUITES_IMPLEMENTED] = {
  * cipher suites just for consistency.
  */
 static const SSLSignatureScheme defaultSignatureSchemes[] = {
+    ssl_sig_mldsa65,
     ssl_sig_ecdsa_secp256r1_sha256,
     ssl_sig_ecdsa_secp384r1_sha384,
     ssl_sig_ecdsa_secp521r1_sha512,
@@ -4407,6 +4408,7 @@ ssl_SignatureSchemeToHashType(SSLSignatureScheme scheme)
         case ssl_sig_none:
         case ssl_sig_ed25519:
         case ssl_sig_ed448:
+        case ssl_sig_mldsa65:
             break;
     }
     PORT_Assert(0);
@@ -4675,6 +4677,10 @@ ssl_IsSupportedSignatureScheme(SSLSignatureScheme scheme)
         case ssl_sig_dsa_sha512:
         case ssl_sig_ecdsa_sha1:
             return ssl_SchemePolicyOK(scheme, kSSLSigSchemePolicy);
+            break;
+
+        case ssl_sig_mldsa65:
+            return PR_TRUE;
             break;
 
         case ssl_sig_rsa_pkcs1_sha1md5:
