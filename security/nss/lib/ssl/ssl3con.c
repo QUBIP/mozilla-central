@@ -1387,66 +1387,89 @@ ssl_VerifySignedHashesWithPubKey(sslSocket *ss, SECKEYPublicKey *key,
 
     PRINT_BUF(60, (NULL, "check signed hashes", buf->data, buf->len));
 
-    hashAlg = ssl3_HashTypeToOID(hash->hashAlg);
-    switch (SECKEY_GetPublicKeyType(key)) {
-        case rsaKey:
-            encAlg = SEC_OID_PKCS1_RSA_ENCRYPTION;
-            hashItem.data = hash->u.raw;
-            hashItem.len = hash->len;
-            if (scheme == ssl_sig_none) {
-                scheme = ssl_sig_rsa_pkcs1_sha1md5;
-            }
-            break;
-        case dsaKey:
-            encAlg = SEC_OID_ANSIX9_DSA_SIGNATURE;
-            /* ssl_hash_none is used to specify the MD5/SHA1 concatenated hash.
-             * In that case, we use just the SHA1 part. */
-            if (hash->hashAlg == ssl_hash_none) {
-                hashItem.data = hash->u.s.sha;
-                hashItem.len = sizeof(hash->u.s.sha);
-            } else {
+    if (hash->hashAlg == ssl_hash_none && hash->len > 64) {
+        // we did a horrible horrible hack
+        void **hack = (void**) &(hash->u.raw);
+        unsigned char *cpy;
+
+        switch (SECKEY_GetPublicKeyType(key)) {
+            case mldsaKey:
+                cpy = PORT_ArenaAlloc(key->arena, hash->len);
+                PORT_Memcpy(cpy, *hack, hash->len);
+                PORT_ZFree(*hack, hash->len);
+                *hack = NULL;
+
+                encAlg = SEC_OID_MLDSA65_SIGNATURE;
+                hashItem.data = cpy;
+                hashItem.len = hash->len;
+                hashAlg = SEC_OID_UNKNOWN;
+                break;
+            default:
+                PORT_SetError(SEC_ERROR_UNSUPPORTED_KEYALG);
+                goto loser;
+        }
+    } else {
+        hashAlg = ssl3_HashTypeToOID(hash->hashAlg);
+        switch (SECKEY_GetPublicKeyType(key)) {
+            case rsaKey:
+                encAlg = SEC_OID_PKCS1_RSA_ENCRYPTION;
                 hashItem.data = hash->u.raw;
                 hashItem.len = hash->len;
-            }
-            /* Allow DER encoded DSA signatures in SSL 3.0 */
-            if (ss->ssl3.prSpec->version > SSL_LIBRARY_VERSION_3_0 ||
-                buf->len != SECKEY_SignatureLen(key)) {
-                signature = DSAU_DecodeDerSigToLen(buf, SECKEY_SignatureLen(key));
-                if (!signature) {
-                    PORT_SetError(SSL_ERROR_BAD_HANDSHAKE_HASH_VALUE);
-                    goto loser;
+                if (scheme == ssl_sig_none) {
+                    scheme = ssl_sig_rsa_pkcs1_sha1md5;
                 }
-                buf = signature;
-            }
-            if (scheme == ssl_sig_none) {
-                scheme = ssl_sig_dsa_sha1;
-            }
-            break;
+                break;
+            case dsaKey:
+                encAlg = SEC_OID_ANSIX9_DSA_SIGNATURE;
+                /* ssl_hash_none is used to specify the MD5/SHA1 concatenated hash.
+                * In that case, we use just the SHA1 part. */
+                if (hash->hashAlg == ssl_hash_none) {
+                    hashItem.data = hash->u.s.sha;
+                    hashItem.len = sizeof(hash->u.s.sha);
+                } else {
+                    hashItem.data = hash->u.raw;
+                    hashItem.len = hash->len;
+                }
+                /* Allow DER encoded DSA signatures in SSL 3.0 */
+                if (ss->ssl3.prSpec->version > SSL_LIBRARY_VERSION_3_0 ||
+                    buf->len != SECKEY_SignatureLen(key)) {
+                    signature = DSAU_DecodeDerSigToLen(buf, SECKEY_SignatureLen(key));
+                    if (!signature) {
+                        PORT_SetError(SSL_ERROR_BAD_HANDSHAKE_HASH_VALUE);
+                        goto loser;
+                    }
+                    buf = signature;
+                }
+                if (scheme == ssl_sig_none) {
+                    scheme = ssl_sig_dsa_sha1;
+                }
+                break;
 
-        case ecKey:
-            encAlg = SEC_OID_ANSIX962_EC_PUBLIC_KEY;
-            /* ssl_hash_none is used to specify the MD5/SHA1 concatenated hash.
-             * In that case, we use just the SHA1 part.
-             * ECDSA signatures always encode the integers r and s using ASN.1
-             * (unlike DSA where ASN.1 encoding is used with TLS but not with
-             * SSL3). So we can use VFY_VerifyDigestDirect for ECDSA.
-             */
-            if (hash->hashAlg == ssl_hash_none) {
-                hashAlg = SEC_OID_SHA1;
-                hashItem.data = hash->u.s.sha;
-                hashItem.len = sizeof(hash->u.s.sha);
-            } else {
-                hashItem.data = hash->u.raw;
-                hashItem.len = hash->len;
-            }
-            if (scheme == ssl_sig_none) {
-                scheme = ssl_sig_ecdsa_sha1;
-            }
-            break;
+            case ecKey:
+                encAlg = SEC_OID_ANSIX962_EC_PUBLIC_KEY;
+                /* ssl_hash_none is used to specify the MD5/SHA1 concatenated hash.
+                * In that case, we use just the SHA1 part.
+                * ECDSA signatures always encode the integers r and s using ASN.1
+                * (unlike DSA where ASN.1 encoding is used with TLS but not with
+                * SSL3). So we can use VFY_VerifyDigestDirect for ECDSA.
+                */
+                if (hash->hashAlg == ssl_hash_none) {
+                    hashAlg = SEC_OID_SHA1;
+                    hashItem.data = hash->u.s.sha;
+                    hashItem.len = sizeof(hash->u.s.sha);
+                } else {
+                    hashItem.data = hash->u.raw;
+                    hashItem.len = hash->len;
+                }
+                if (scheme == ssl_sig_none) {
+                    scheme = ssl_sig_ecdsa_sha1;
+                }
+                break;
 
-        default:
-            PORT_SetError(SEC_ERROR_UNSUPPORTED_KEYALG);
-            goto loser;
+            default:
+                PORT_SetError(SEC_ERROR_UNSUPPORTED_KEYALG);
+                goto loser;
+        }
     }
 
     PRINT_BUF(60, (NULL, "hash(es) to be verified",
@@ -4418,7 +4441,12 @@ ssl_SignatureSchemeToHashType(SSLSignatureScheme scheme)
 static PRBool
 ssl_SignatureSchemeMatchesSpkiOid(SSLSignatureScheme scheme, SECOidTag spkiOid)
 {
-    SECOidTag authOid = ssl3_AuthTypeToOID(ssl_SignatureSchemeToAuthType(scheme));
+    if (scheme == ssl_sig_mldsa65 && spkiOid == SEC_OID_MLDSA65_PUBLIC_KEY) {
+        return PR_TRUE;
+    }
+
+    SSLAuthType schemeAT = ssl_SignatureSchemeToAuthType(scheme);
+    SECOidTag authOid = ssl3_AuthTypeToOID(schemeAT);
 
     if (spkiOid == authOid) {
         return PR_TRUE;
@@ -4457,7 +4485,8 @@ ssl_SignatureSchemeValid(SSLSignatureScheme scheme, SECOidTag spkiOid,
         }
         /* With TLS 1.3, EC keys should have been selected based on calling
          * ssl_SignatureSchemeFromSpki(), reject them otherwise. */
-        return spkiOid != SEC_OID_ANSIX962_EC_PUBLIC_KEY;
+        PRBool ret = spkiOid != SEC_OID_ANSIX962_EC_PUBLIC_KEY;
+        return ret;
     }
     return PR_TRUE;
 }
@@ -4785,6 +4814,8 @@ ssl_SignatureSchemeToAuthType(SSLSignatureScheme scheme)
         case ssl_sig_dsa_sha384:
         case ssl_sig_dsa_sha512:
             return ssl_auth_dsa;
+        case ssl_sig_mldsa65:
+            return ssl_auth_tls13_any;
 
         default:
             PORT_Assert(0);
@@ -11708,6 +11739,21 @@ ssl_SetAuthKeyBits(sslSocket *ss, const SECKEYPublicKey *pubKey)
                  * only support curves we like. */
                 minKey = ss->sec.authKeyBits;
             }
+            break;
+
+        case mldsaKey:
+            //rv = usePolicyLength ? NSS_OptionGet(NSS_ECC_MIN_KEY_SIZE, &optval)
+            //                     : SECFailure;
+            //if (rv == SECSuccess && optval > 0) {
+            //    minKey = (PRUint32)optval;
+            //} else {
+            //    /* Don't check EC strength here on the understanding that we
+            //     * only support curves we like. */
+            //    minKey = ss->sec.authKeyBits;
+            //}
+
+            // Assume we only support mldsa keys we like
+            minKey = ss->sec.authKeyBits;
             break;
 
         default:

@@ -672,9 +672,6 @@ seckey_ExtractPublicKey(const CERTSubjectPublicKeyInfo *spki)
                 if (rv == SECSuccess)
                     return pubk;
                 break;
-            case SEC_OID_MLDSA65_SIGNATURE:
-                fprintf(stderr, "Should we handle SEC_OID_MLDSA65_SIGNATURE??\n");
-                break;
             case SEC_OID_MLDSA65_PUBLIC_KEY:
                 /* A basic consistency check on inputs. */
                 if (newOs.len == 0) {
@@ -1637,20 +1634,14 @@ SECKEY_ConvertToPublicKey(SECKEYPrivateKey *privk)
         case mldsaKey:
             rv = PK11_ReadAttribute(privk->pkcs11Slot, privk->pkcs11ID,
                                     CKA_VALUE, arena, &pubk->u.mldsa.publicValue);
-            if (rv != SECSuccess) {
-                fprintf(stderr, "1648: Failed FOOOOBAARRR\n");
-                break;
-            }
             if (rv != SECSuccess || pubk->u.mldsa.publicValue.len == 0) {
                 pubKeyHandle = seckey_FindPublicKeyHandle(privk, pubk);
                 if (pubKeyHandle == CK_INVALID_HANDLE) {
-                    fprintf(stderr, "1654: Failed FOOOOBAARRR\n");
                     break;
                 }
                 rv = PK11_ReadAttribute(privk->pkcs11Slot, pubKeyHandle,
                                         CKA_VALUE, arena, &pubk->u.mldsa.publicValue);
                 if (rv != SECSuccess) {
-                    fprintf(stderr, "1660: Failed FOOOOBAARRR\n");
                     break;
                 }
             }
@@ -1803,13 +1794,11 @@ seckey_CreateSubjectPublicKeyInfo_helper(SECKEYPublicKey *pubk)
                                            tag,
                                            &params);
                 if (rv != SECSuccess) {
-                    fprintf(stderr, "1815: are we failing???\n");
                     break;
                 }
 
                 rv = SECITEM_CopyItem(arena, &spki->subjectPublicKey,
                                       &pubk->u.mldsa.publicValue);
-                fprintf(stderr, "1821: rv was %d (ok?%d)\n",rv, SECSuccess==rv);
 
                 if (rv == SECSuccess) {
                     /*

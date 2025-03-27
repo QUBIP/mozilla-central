@@ -280,10 +280,8 @@ PK11_ImportPublicKey(PK11SlotInfo *slot, SECKEYPublicKey *pubKey,
                 keyType = CKK_ML_DSA;
                 PK11_SETATTRS(attrs, CKA_VERIFY, &cktrue, sizeof(CK_BBOOL));
                 attrs++;
-                PK11_SETATTRS(attrs, CKA_SIGN, &cktrue, sizeof(CK_BBOOL));
-                attrs++;
                 PK11_SETATTRS(attrs, CKA_VALUE, pubKey->u.mldsa.publicValue.data,
-                    pubKey->u.mldsa.publicValue.len);
+                              pubKey->u.mldsa.publicValue.len);
                 attrs++;
                 break;
             default:
@@ -296,7 +294,7 @@ PK11_ImportPublicKey(PK11SlotInfo *slot, SECKEYPublicKey *pubKey,
         templateCount = attrs - theTemplate;
         PORT_Assert(templateCount <= (sizeof(theTemplate) / sizeof(CK_ATTRIBUTE)));
         if (pubKey->keyType != ecKey && pubKey->keyType != kyberKey && pubKey->keyType != edKey &&
-            pubKey->keyType != ecMontKey && pubKey->keyType != mldsaKey){
+            pubKey->keyType != ecMontKey && pubKey->keyType != mldsaKey) {
             PORT_Assert(signedattr);
             signedcount = attrs - signedattr;
             for (attrs = signedattr; signedcount; attrs++, signedcount--) {

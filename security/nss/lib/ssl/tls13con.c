@@ -4317,10 +4317,12 @@ tls13_AddContextToHashes(sslSocket *ss, const SSL3Hashes *hashes,
     /* Double check that we are doing the same hash.*/
     PORT_Assert(hashes->len == tls13_GetHashSize(ss));
 
-    ctx = PK11_CreateDigestContext(ssl3_HashTypeToOID(algorithm));
-    if (!ctx) {
-        PORT_SetError(SEC_ERROR_NO_MEMORY);
-        goto loser;
+    if (algorithm != ssl_hash_none) {
+        ctx = PK11_CreateDigestContext(ssl3_HashTypeToOID(algorithm));
+        if (!ctx) {
+            PORT_SetError(SEC_ERROR_NO_MEMORY);
+            goto loser;
+        }
     }
 
     PORT_Assert(SECFailure);
@@ -4328,14 +4330,49 @@ tls13_AddContextToHashes(sslSocket *ss, const SSL3Hashes *hashes,
 
     PRINT_BUF(50, (ss, "TLS 1.3 hash without context", hashes->u.raw, hashes->len));
     PRINT_BUF(50, (ss, "Context string", context_string, strlen(context_string)));
-    rv |= PK11_DigestBegin(ctx);
-    rv |= PK11_DigestOp(ctx, context_padding, sizeof(context_padding));
-    rv |= PK11_DigestOp(ctx, (unsigned char *)context_string,
-                        strlen(context_string) + 1); /* +1 includes the terminating 0 */
-    rv |= PK11_DigestOp(ctx, hashes->u.raw, hashes->len);
-    /* Update the hash in-place */
-    rv |= PK11_DigestFinal(ctx, tbsHash->u.raw, &hashlength, sizeof(tbsHash->u.raw));
-    PK11_DestroyContext(ctx, PR_TRUE);
+    if (algorithm != ssl_hash_none) {
+        rv |= PK11_DigestBegin(ctx);
+        rv |= PK11_DigestOp(ctx, context_padding, sizeof(context_padding));
+        rv |= PK11_DigestOp(ctx, (unsigned char *)context_string,
+                            strlen(context_string) + 1); /* +1 includes the terminating 0 */
+        rv |= PK11_DigestOp(ctx, hashes->u.raw, hashes->len);
+        /* Update the hash in-place */
+        rv |= PK11_DigestFinal(ctx, tbsHash->u.raw, &hashlength, sizeof(tbsHash->u.raw));
+        PK11_DestroyContext(ctx, PR_TRUE);
+    } else {
+        // with ssl_hash_none we just concatenate
+        size_t bufsize;
+        size_t tl;
+
+        bufsize = sizeof(context_padding)
+            + strlen(context_string)+1 
+            + hashes->len;
+        
+        unsigned char *buf = PORT_ZAlloc(bufsize);
+        unsigned char *p = buf;
+        if (buf == NULL) {
+            PORT_SetError(SEC_ERROR_NO_MEMORY);
+            goto loser;
+        }
+
+        tl = sizeof(context_padding);
+        PORT_Memcpy(p, context_padding, tl);
+        p += tl;
+
+        tl = strlen(context_string) + 1;
+        PORT_Memcpy(p, context_string, tl);
+        p += tl;
+
+        tl = hashes->len;
+        PORT_Memcpy(p, hashes->u.raw, tl);
+        p += tl;
+
+        // FIXME: terrible terrible hack, we pass the raw pointer...
+        hashlength = bufsize;
+        void **hack = (void**) &(tbsHash->u.raw);
+        *hack = buf;
+        rv = SECSuccess;
+    }
     PRINT_BUF(50, (ss, "TLS 1.3 hash with context", tbsHash->u.raw, hashlength));
 
     tbsHash->len = hashlength;
