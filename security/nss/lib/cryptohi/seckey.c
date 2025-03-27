@@ -553,6 +553,9 @@ seckey_GetKeyType(SECOidTag tag)
         case SEC_OID_ED25519_PUBLIC_KEY:
             keyType = edKey;
             break;
+        case SEC_OID_MLDSA65_PUBLIC_KEY:
+            keyType = mldsaKey;
+            break;
         /* accommodate applications that hand us a signature type when they
          * should be handing us a cipher type */
         case SEC_OID_PKCS1_MD5_WITH_RSA_ENCRYPTION:
@@ -669,6 +672,45 @@ seckey_ExtractPublicKey(const CERTSubjectPublicKeyInfo *spki)
                 if (rv == SECSuccess)
                     return pubk;
                 break;
+            case SEC_OID_MLDSA65_SIGNATURE:
+                fprintf(stderr, "Should we handle SEC_OID_MLDSA65_SIGNATURE??\n");
+                break;
+            case SEC_OID_MLDSA65_PUBLIC_KEY:
+                /* A basic consistency check on inputs. */
+                if (newOs.len == 0) {
+                    PORT_SetError(SEC_ERROR_INPUT_LEN);
+                    break;
+                }
+
+                /* Currently supporting only (Pure)ML-DSA65 .*/
+                if (spki->algorithm.parameters.len != 0) {
+                    PORT_SetError(SEC_ERROR_UNSUPPORTED_KEYALG);
+                    break;
+                }
+
+                /*
+                 * ML-DSA variants are identified by unique OIDs. Currently, 
+                 * we only support the (Pure)ML-DSA65 parameter set.
+                 */ 
+                if (tag == SEC_OID_MLDSA65_PUBLIC_KEY) {
+                    pubk->keyType = mldsaKey;
+                } else {
+                    PORT_SetError(SEC_ERROR_UNSUPPORTED_KEYALG);
+                    break;
+                }
+
+                pubk->u.mldsa.size = 0;
+
+                SECOidData *oiddata = SECOID_FindOIDByTag(tag);
+                if (!oiddata) {
+                    break;
+                }
+
+                rv = SECITEM_CopyItem(arena, &pubk->u.mldsa.publicValue, &newOs);
+                if (rv != SECSuccess) {
+                    break;
+                }
+                return pubk;
             case SEC_OID_X25519:
             case SEC_OID_ED25519_PUBLIC_KEY:
                 /* A basic consistency check on inputs. */
@@ -1115,6 +1157,9 @@ SECKEY_PublicKeyStrengthInBits(const SECKEYPublicKey *pubk)
         case ecMontKey:
             bitSize = SECKEY_ECParamsToKeySize(&pubk->u.ec.DEREncodedParams);
             break;
+        case mldsaKey:
+            bitSize = 192; // SECKEY_BigIntegerBitLength(&pubk->u.mldsa.publicValue);
+            break;
         default:
             PORT_SetError(SEC_ERROR_INVALID_KEY);
             break;
@@ -1346,6 +1391,11 @@ SECKEY_CopyPublicKey(const SECKEYPublicKey *pubk)
             copyk->u.ec.encoding = ECPoint_Undefined;
             rv = SECITEM_CopyItem(arena, &copyk->u.ec.publicValue,
                                   &pubk->u.ec.publicValue);
+            break;
+        case mldsaKey:
+            copyk->u.mldsa.size = pubk->u.mldsa.size;
+            rv = SECITEM_CopyItem(arena, &copyk->u.mldsa.publicValue,
+                                  &pubk->u.mldsa.publicValue);
             break;
         case nullKey:
             return copyk;
@@ -1584,6 +1634,28 @@ SECKEY_ConvertToPublicKey(SECKEYPrivateKey *privk)
             }
             pubk->u.ec.encoding = ECPoint_Undefined;
             return pubk;
+        case mldsaKey:
+            rv = PK11_ReadAttribute(privk->pkcs11Slot, privk->pkcs11ID,
+                                    CKA_VALUE, arena, &pubk->u.mldsa.publicValue);
+            if (rv != SECSuccess) {
+                fprintf(stderr, "1648: Failed FOOOOBAARRR\n");
+                break;
+            }
+            if (rv != SECSuccess || pubk->u.mldsa.publicValue.len == 0) {
+                pubKeyHandle = seckey_FindPublicKeyHandle(privk, pubk);
+                if (pubKeyHandle == CK_INVALID_HANDLE) {
+                    fprintf(stderr, "1654: Failed FOOOOBAARRR\n");
+                    break;
+                }
+                rv = PK11_ReadAttribute(privk->pkcs11Slot, pubKeyHandle,
+                                        CKA_VALUE, arena, &pubk->u.mldsa.publicValue);
+                if (rv != SECSuccess) {
+                    fprintf(stderr, "1660: Failed FOOOOBAARRR\n");
+                    break;
+                }
+            }
+            return pubk;
+
         default:
             break;
     }
@@ -1712,6 +1784,32 @@ seckey_CreateSubjectPublicKeyInfo_helper(SECKEYPublicKey *pubk)
 
                 rv = SECITEM_CopyItem(arena, &spki->subjectPublicKey,
                                       &pubk->u.ec.publicValue);
+
+                if (rv == SECSuccess) {
+                    /*
+                     * The stored value is supposed to be a BIT_STRING,
+                     * so convert the length.
+                     */
+                    spki->subjectPublicKey.len <<= 3;
+                    /*
+                     * We got a good one; return it.
+                     */
+                    return spki;
+                }
+                break;
+            case mldsaKey:
+                tag = SEC_OID_MLDSA65_PUBLIC_KEY;
+                rv = SECOID_SetAlgorithmID(arena, &spki->algorithm,
+                                           tag,
+                                           &params);
+                if (rv != SECSuccess) {
+                    fprintf(stderr, "1815: are we failing???\n");
+                    break;
+                }
+
+                rv = SECITEM_CopyItem(arena, &spki->subjectPublicKey,
+                                      &pubk->u.mldsa.publicValue);
+                fprintf(stderr, "1821: rv was %d (ok?%d)\n",rv, SECSuccess==rv);
 
                 if (rv == SECSuccess) {
                     /*
