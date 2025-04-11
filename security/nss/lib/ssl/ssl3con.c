@@ -11813,6 +11813,60 @@ ssl3_HandleServerSpki(sslSocket *ss)
     return SECSuccess;
 }
 
+#define QUBIP_HACK_SKIP_AUTHCERT 1
+#ifdef QUBIP_HACK_SKIP_AUTHCERT
+/*
+ * Temporarily bypass certificate path validation for
+ * certificates with MLDSA signatures.
+ */
+static inline
+int
+QUBIP_hack_should_skip_AuthCertificate(sslSocket *ss)
+{
+    CERTCertificate *cert = NULL;
+    SECOidTag sigtag;
+    int ret = 0;
+
+    cert = ss->sec.peerCert;
+    if (cert == NULL) {
+        // bail out
+        return 0;
+    }
+    sigtag = SECOID_GetAlgorithmTag(&cert->signature);
+
+    switch (sigtag) {
+    case SEC_OID_MLDSA65_PUBLIC_KEY:
+    case SEC_OID_MLDSA65_SIGNATURE:
+        ret = 1;
+        break;
+    default:
+        break;
+    }
+
+    if (ret != 0) {
+        SECOidData *sigoidd = NULL;
+
+        sigoidd = SECOID_FindOIDByTag(sigtag);
+        if (sigoidd == NULL) {
+            return -1;
+        }
+        fprintf(stderr,
+                "\n\n[WARNING, Parent %d: Socket Thread]: W/SSL3[%012x]: Skipping cert chain validation. "
+                 "Cert signature type: %s; "
+                 "subjectName: \"%s\", issuerName: \"%s\"."
+                 "\n\n",
+                 SSL_GETPID(),
+                 ss->fd,
+                 sigoidd->desc,
+                 cert->subjectName,
+                 cert->issuerName
+                );
+    }
+
+    return ret;
+}
+#endif
+
 SECStatus
 ssl3_AuthCertificate(sslSocket *ss)
 {
@@ -11844,11 +11898,42 @@ ssl3_AuthCertificate(sslSocket *ss)
         }
     }
 
+#ifdef QUBIP_HACK_SKIP_AUTHCERT
+    /*
+    * Temporarily bypass certificate path validation for
+    * certain experimental certificates.
+    * This is implemented as a separate static function to minimize
+    * changes to the original codebase.
+    *
+    * NOTE: while this is active, any connection for which the
+    *       following function returns 1, will NOT be AUTHENTICATED.
+    *       While the handshake signature is verified, there are no
+    *       guarantees about the identity of the Certificate Subject,
+    *       therefore the connection is effectively INSECURE.
+    *
+    *       This is an intentional MITM vulnerability, added as a temporary
+    *       workaround while the mozpkix code gets updated to support
+    *       the new experimental signature algorithms.
+    */
+    int should_skip = QUBIP_hack_should_skip_AuthCertificate(ss);
+    switch (should_skip) {
+        case -1:
+            errCode = PORT_GetError();
+            goto loser;
+        case 1:
+            goto skip;
+    }
+#endif
+
     /*
      * Ask caller-supplied callback function to validate cert chain.
      */
     rv = (SECStatus)(*ss->authCertificate)(ss->authCertificateArg, ss->fd,
                                            PR_TRUE, isServer);
+
+#ifdef QUBIP_HACK_SKIP_AUTHCERT
+skip:
+#endif
     if (rv != SECSuccess) {
         errCode = PORT_GetError();
         if (errCode == 0) {
