@@ -80,6 +80,10 @@ class AppTrustDomain final : public mozilla::pkix::TrustDomain {
                            mozilla::pkix::DigestAlgorithm digestAlg,
                            /*out*/ uint8_t* digestBuf,
                            size_t digestBufLen) override;
+  virtual Result VerifyMLDSASignedData(
+      mozilla::pkix::Input data, mozilla::pkix::DigestAlgorithm digestAlgorithm,
+      mozilla::pkix::Input signature,
+      mozilla::pkix::Input subjectPublicKeyInfo) override;
 
  private:
   nsTArray<Span<const uint8_t>> mTrustedRoots;

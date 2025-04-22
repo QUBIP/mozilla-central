@@ -364,6 +364,7 @@ static const CK_MECHANISM_TYPE auth_alg_defs[] = {
     CKM_RSA_PKCS,          /* ssl_auth_rsa_sign */
     CKM_RSA_PKCS_PSS,      /* ssl_auth_rsa_pss */
     CKM_NSS_HKDF_SHA256,   /* ssl_auth_psk (just check for HKDF) */
+    CKM_ML_DSA,            /* ssl_auth_mldsa */
     CKM_INVALID_MECHANISM  /* ssl_auth_tls13_any */
 };
 PR_STATIC_ASSERT(PR_ARRAY_SIZE(auth_alg_defs) == ssl_auth_size);
@@ -761,7 +762,8 @@ static PRBool
 ssl_HasCert(const sslSocket *ss, PRUint16 maxVersion, SSLAuthType authType)
 {
     PRCList *cursor;
-    if (authType == ssl_auth_null || authType == ssl_auth_psk || authType == ssl_auth_tls13_any) {
+    if (authType == ssl_auth_null || authType == ssl_auth_psk || 
+        authType == ssl_auth_tls13_any || authType == ssl_auth_mldsa) {
         return PR_TRUE;
     }
     for (cursor = PR_NEXT_LINK(&ss->serverCerts);
@@ -4815,7 +4817,7 @@ ssl_SignatureSchemeToAuthType(SSLSignatureScheme scheme)
         case ssl_sig_dsa_sha512:
             return ssl_auth_dsa;
         case ssl_sig_mldsa65:
-            return ssl_auth_tls13_any;
+            return ssl_auth_mldsa;
 
         default:
             PORT_Assert(0);
@@ -11813,7 +11815,7 @@ ssl3_HandleServerSpki(sslSocket *ss)
     return SECSuccess;
 }
 
-#define QUBIP_HACK_SKIP_AUTHCERT 1
+//#define QUBIP_HACK_SKIP_AUTHCERT 1
 #ifdef QUBIP_HACK_SKIP_AUTHCERT
 /*
  * Temporarily bypass certificate path validation for

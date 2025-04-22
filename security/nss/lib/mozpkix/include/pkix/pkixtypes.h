@@ -39,6 +39,7 @@ enum class DigestAlgorithm {
   sha384 = 2,
   sha256 = 3,
   sha1 = 4,
+  no_digest = 100,
 };
 
 enum class NamedCurve {
@@ -330,6 +331,11 @@ class TrustDomain {
   // VerifyECDSASignedData *is* responsible for doing the mathematical
   // verification of the public key validity as specified in NIST SP 800-56A.
   virtual Result VerifyECDSASignedData(Input data,
+                                       DigestAlgorithm digestAlgorithm,
+                                       Input signature,
+                                       Input subjectPublicKeyInfo) = 0;
+
+  virtual Result VerifyMLDSASignedData(Input data,
                                        DigestAlgorithm digestAlgorithm,
                                        Input signature,
                                        Input subjectPublicKeyInfo) = 0;

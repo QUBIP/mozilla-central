@@ -1466,6 +1466,7 @@ Result NSSCertDBTrustDomain::CheckSignatureDigestAlgorithm(
     case DigestAlgorithm::sha256:  // fall through
     case DigestAlgorithm::sha384:  // fall through
     case DigestAlgorithm::sha512:
+    case DigestAlgorithm::no_digest:
       return Success;
     case DigestAlgorithm::sha1:
       return Result::ERROR_CERT_SIGNATURE_ALGORITHM_DISABLED;
@@ -1518,6 +1519,16 @@ Result NSSCertDBTrustDomain::VerifyECDSASignedData(
     Input subjectPublicKeyInfo) {
   return VerifySignedDataWithCache(
       der::PublicKeyAlgorithm::ECDSA,
+      mozilla::glean::cert_signature_cache::total,
+      mozilla::glean::cert_signature_cache::hits, data, digestAlgorithm,
+      signature, subjectPublicKeyInfo, mSignatureCache, mPinArg);
+}
+
+Result NSSCertDBTrustDomain::VerifyMLDSASignedData(
+    Input data, DigestAlgorithm digestAlgorithm, Input signature,
+    Input subjectPublicKeyInfo) {
+  return VerifySignedDataWithCache(
+      der::PublicKeyAlgorithm::MLDSA,
       mozilla::glean::cert_signature_cache::total,
       mozilla::glean::cert_signature_cache::hits, data, digestAlgorithm,
       signature, subjectPublicKeyInfo, mSignatureCache, mPinArg);

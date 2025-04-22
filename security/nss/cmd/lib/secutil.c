@@ -1509,6 +1509,20 @@ SECU_PrintDSAPublicKey(FILE *out, SECKEYPublicKey *pk, char *m, int level)
     SECU_PrintInteger(out, &pk->u.dsa.publicValue, "PublicValue", level + 1);
 }
 
+void
+SECU_PrintMLDSAPublicKey(FILE *out, SECKEYPublicKey *pk, char *m, int level)
+{
+    SECItem sizeItem;
+    sizeItem.type = siUnsignedInteger;
+    sizeItem.data = (unsigned char *)&pk->u.mldsa.size;
+    sizeItem.len = pk->u.mldsa.size;
+    
+    SECU_Indent(out, level);
+    fprintf(out, "%s:\n", m);
+    SECU_PrintInteger(out, &sizeItem, "Size", level + 1);
+    SECU_PrintInteger(out, &pk->u.mldsa.publicValue, "PublicValue", level + 1);
+}
+
 static void
 secu_PrintSubjectPublicKeyInfo(FILE *out, PLArenaPool *arena,
                                CERTSubjectPublicKeyInfo *i, char *msg, int level)
@@ -1532,6 +1546,10 @@ secu_PrintSubjectPublicKeyInfo(FILE *out, PLArenaPool *arena,
 
             case ecKey:
                 secu_PrintECPublicKey(out, pk, "EC Public Key", level + 1);
+                break;
+
+            case mldsaKey:
+                SECU_PrintMLDSAPublicKey(out, pk, "MLDSA Public Key", level + 1);
                 break;
 
             case dhKey:

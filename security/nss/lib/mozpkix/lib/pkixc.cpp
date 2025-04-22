@@ -96,6 +96,7 @@ class CodeSigningTrustDomain final : public TrustDomain {
       case DigestAlgorithm::sha256:  // fall through
       case DigestAlgorithm::sha384:  // fall through
       case DigestAlgorithm::sha512:
+      case DigestAlgorithm::no_digest:
         return Success;
       default:
         return Result::ERROR_CERT_SIGNATURE_ALGORITHM_DISABLED;
@@ -140,6 +141,13 @@ class CodeSigningTrustDomain final : public TrustDomain {
       Input data, DigestAlgorithm digestAlgorithm, Input signature,
       Input subjectPublicKeyInfo) override {
     return VerifyECDSASignedDataNSS(data, digestAlgorithm, signature,
+        subjectPublicKeyInfo, nullptr);
+  }
+
+  virtual Result VerifyMLDSASignedData(
+      Input data, DigestAlgorithm digestAlgorithm, Input signature,
+      Input subjectPublicKeyInfo) override {
+    return VerifyMLDSASignedDataNSS(data, digestAlgorithm, signature,
         subjectPublicKeyInfo, nullptr);
   }
 

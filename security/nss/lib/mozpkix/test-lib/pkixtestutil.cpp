@@ -1126,6 +1126,8 @@ CertID(OCSPResponseContext& context)
       case DigestAlgorithm::sha512:
         value.append(alg_id_sha512, sizeof(alg_id_sha512));
         break;
+      case DigestAlgorithm::no_digest:
+        value.append(0, 0);
       MOZILLA_PKIX_UNREACHABLE_DEFAULT_ENUM
     }
   }

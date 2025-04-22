@@ -1065,6 +1065,11 @@ void HandshakeCallback(PRFileDesc* fd, void* client_data) {
           glean::ssl::auth_ecdsa_curve_full.AccumulateSingleSample(
               ECCCurve(channelInfo.authKeyBits));
           break;
+        case ssl_auth_mldsa:
+          /* TODO: add auth_mldsa_key_size_full in ssl/metrics.yaml
+          glean::ssl::auth_mldsa_key_size_full.AccumulateSingleSample(
+              NonECCKeySize(channelInfo.authKeyBits)); */
+          break;
         default:
           MOZ_CRASH("impossible auth algorithm");
           break;

@@ -210,6 +210,11 @@ SignatureAlgorithmIdentifierValue(Reader& input,
     0x06, 0x09, 0x60, 0x86, 0x48, 0x01, 0x65, 0x03, 0x04, 0x02, 0x03, 0x05,
     0x00, 0xa2, 0x03, 0x02, 0x01, 0x40
   };
+  // Params for pure ML-DSA-65 signature
+  // python DottedOIDToCode.py id-ml-dsa-65 2.16.840.1.101.3.4.3.18
+  static const uint8_t id_ml_dsa_65[] = {
+    0x60, 0x86, 0x48, 0x01, 0x65, 0x03, 0x04, 0x03, 0x12
+  };
 
   // Matching is attempted based on a rough estimate of the commonality of the
   // algorithm, to minimize the number of MatchRest calls.
@@ -252,6 +257,9 @@ SignatureAlgorithmIdentifierValue(Reader& input,
     } else {
       return Result::ERROR_CERT_SIGNATURE_ALGORITHM_DISABLED;
     }
+  } else if (algorithmID.MatchRest(id_ml_dsa_65)) {
+    publicKeyAlgorithm = PublicKeyAlgorithm::MLDSA;
+    digestAlgorithm = DigestAlgorithm::no_digest;
   } else {
     return Result::ERROR_CERT_SIGNATURE_ALGORITHM_DISABLED;
   }

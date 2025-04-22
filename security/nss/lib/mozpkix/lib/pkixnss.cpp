@@ -125,6 +125,8 @@ VerifyRSAPKCS1SignedDataNSS(Input data, DigestAlgorithm digestAlgorithm,
       hashPolicyTag = SEC_OID_SHA1;
       combinedPolicyTag = SEC_OID_PKCS1_SHA1_WITH_RSA_ENCRYPTION;
       break;
+    case DigestAlgorithm::no_digest:
+      return Result::FATAL_ERROR_INVALID_ARGS;
     MOZILLA_PKIX_UNREACHABLE_DEFAULT_ENUM
   }
   SECOidTag policyTags[3] =
@@ -174,6 +176,8 @@ VerifyRSAPSSSignedDataNSS(Input data, DigestAlgorithm digestAlgorithm,
     case DigestAlgorithm::sha1:
       return Result::ERROR_CERT_SIGNATURE_ALGORITHM_DISABLED;
       break;
+    case DigestAlgorithm::no_digest:
+      return Result::FATAL_ERROR_INVALID_ARGS;
     MOZILLA_PKIX_UNREACHABLE_DEFAULT_ENUM
   }
   SECItem params;
@@ -261,6 +265,8 @@ VerifyECDSASignedDataNSS(Input data, DigestAlgorithm digestAlgorithm,
       hashPolicyTag = SEC_OID_SHA1;
       combinedPolicyTag = SEC_OID_ANSIX962_ECDSA_SHA1_SIGNATURE;
       break;
+    case DigestAlgorithm::no_digest:
+      return Result::FATAL_ERROR_INVALID_ARGS;
     MOZILLA_PKIX_UNREACHABLE_DEFAULT_ENUM
   }
   SECOidTag policyTags[3] =
@@ -282,6 +288,7 @@ DigestBufNSS(Input item,
     case DigestAlgorithm::sha384: oid = SEC_OID_SHA384; bits = 384; break;
     case DigestAlgorithm::sha256: oid = SEC_OID_SHA256; bits = 256; break;
     case DigestAlgorithm::sha1: oid = SEC_OID_SHA1; bits = 160; break;
+    case DigestAlgorithm::no_digest: oid = SEC_OID_UNKNOWN; bits = 0; break;
     MOZILLA_PKIX_UNREACHABLE_DEFAULT_ENUM
   }
   if (digestBufLen != bits / 8) {
@@ -301,6 +308,39 @@ DigestBufNSS(Input item,
     return MapPRErrorCodeToResult(PR_GetError());
   }
   return Success;
+}
+
+Result
+VerifyMLDSASignedDataNSS(Input data, DigestAlgorithm digestAlgorithm, 
+                         Input signature, Input subjectPublicKeyInfo, void* pkcs11PinArg)
+{
+  ScopedSECKEYPublicKey publicKey;
+  Result rv = SubjectPublicKeyInfoToSECKEYPublicKey(subjectPublicKeyInfo,
+      publicKey);
+  if (rv != Success) {
+    return rv;
+  }
+
+  SECItem signatureItem(UnsafeMapInputToSECItem(signature));
+  SECItem dataItem(UnsafeMapInputToSECItem(data));
+  CK_MECHANISM_TYPE mechanism;
+  SECOidTag signaturePolicyTag = SEC_OID_MLDSA65_SIGNATURE;
+  SECOidTag hashPolicyTag;
+  switch (digestAlgorithm) {
+    case DigestAlgorithm::no_digest:
+      mechanism = CKM_ML_DSA;
+      hashPolicyTag = SEC_OID_UNKNOWN;
+      break; 
+    case DigestAlgorithm::sha512:
+    case DigestAlgorithm::sha384:
+    case DigestAlgorithm::sha256:
+    case DigestAlgorithm::sha1:
+      return Result::ERROR_CERT_SIGNATURE_ALGORITHM_DISABLED;
+    MOZILLA_PKIX_UNREACHABLE_DEFAULT_ENUM
+  }
+  SECOidTag policyTags[2] = {signaturePolicyTag, hashPolicyTag};
+  return VerifySignedData(publicKey.get(), mechanism, nullptr, 
+                          &signatureItem, &dataItem, policyTags, pkcs11PinArg);
 }
 
 Result

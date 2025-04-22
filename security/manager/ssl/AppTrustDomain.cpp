@@ -273,6 +273,7 @@ pkix::Result AppTrustDomain::CheckSignatureDigestAlgorithm(
     case DigestAlgorithm::sha256:  // fall through
     case DigestAlgorithm::sha384:  // fall through
     case DigestAlgorithm::sha512:
+    case DigestAlgorithm::no_digest:
       return Success;
     case DigestAlgorithm::sha1:
       return pkix::Result::ERROR_CERT_SIGNATURE_ALGORITHM_DISABLED;
@@ -319,6 +320,13 @@ pkix::Result AppTrustDomain::VerifyECDSASignedData(
     Input data, DigestAlgorithm digestAlgorithm, Input signature,
     Input subjectPublicKeyInfo) {
   return VerifyECDSASignedDataNSS(data, digestAlgorithm, signature,
+                                  subjectPublicKeyInfo, nullptr);
+}
+
+pkix::Result AppTrustDomain::VerifyMLDSASignedData(
+    Input data, DigestAlgorithm digestAlgorithm, Input signature,
+    Input subjectPublicKeyInfo) {
+  return VerifyMLDSASignedDataNSS(data, digestAlgorithm, signature,
                                   subjectPublicKeyInfo, nullptr);
 }
 

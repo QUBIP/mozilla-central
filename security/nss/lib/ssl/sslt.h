@@ -188,6 +188,7 @@ typedef enum {
     ssl_auth_rsa_pss = 8,    /* RSA signing with a PSS key. */
     ssl_auth_psk = 9,
     ssl_auth_tls13_any = 10,
+    ssl_auth_mldsa = 11,
     ssl_auth_size /* number of authentication types */
 } SSLAuthType;
 

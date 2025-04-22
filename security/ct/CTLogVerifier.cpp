@@ -99,6 +99,11 @@ class SignatureParamsTrustDomain final : public TrustDomain {
     return pkix::Result::FATAL_ERROR_LIBRARY_FAILURE;
   }
 
+  pkix::Result VerifyMLDSASignedData(Input, DigestAlgorithm, Input,
+                                      Input) override {
+    return pkix::Result::FATAL_ERROR_LIBRARY_FAILURE;
+  }
+
   pkix::Result CheckValidityIsAcceptable(Time, Time, EndEntityOrCA,
                                          KeyPurposeId) override {
     return pkix::Result::FATAL_ERROR_LIBRARY_FAILURE;

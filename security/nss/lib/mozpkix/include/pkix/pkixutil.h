@@ -258,6 +258,8 @@ inline size_t DigestAlgorithmToSizeInBytes(DigestAlgorithm digestAlgorithm) {
       return 384 / 8;
     case DigestAlgorithm::sha512:
       return 512 / 8;
+    case DigestAlgorithm::no_digest:
+      return 0;
       MOZILLA_PKIX_UNREACHABLE_DEFAULT_ENUM
   }
 }

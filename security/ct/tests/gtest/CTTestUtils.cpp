@@ -737,6 +737,14 @@ class OCSPExtensionTrustDomain : public TrustDomain {
                                      subjectPublicKeyInfo, nullptr);
   }
 
+  pkix::Result VerifyMLDSASignedData(Input data,
+                                     DigestAlgorithm digestAlgorithm,
+                                     Input signature,
+                                     Input subjectPublicKeyInfo) override {
+    return VerifyMLDSASignedDataNSS(data, digestAlgorithm, signature,
+                                    subjectPublicKeyInfo, nullptr);
+  }
+
   pkix::Result CheckValidityIsAcceptable(Time, Time, EndEntityOrCA,
                                          KeyPurposeId) override {
     ADD_FAILURE();

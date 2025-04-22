@@ -118,6 +118,9 @@ CheckSignatureAlgorithm(TrustDomain& trustDomain,
       // for any curve that we support, the chances of us encountering a curve
       // during path building is too low to be worth bothering with.
       break;
+
+    case der::PublicKeyAlgorithm::MLDSA:
+      break;
     MOZILLA_PKIX_UNREACHABLE_DEFAULT_ENUM
   }
 
@@ -248,6 +251,12 @@ CheckSubjectPublicKeyInfoContents(Reader& input, TrustDomain& trustDomain,
     0x2a, 0x86, 0x48, 0xce, 0x3d, 0x02, 0x01
   };
 
+  // Params for pure ML-DSA-65 signature
+  // python DottedOIDToCode.py id-ml-dsa-65 2.16.840.1.101.3.4.3.18
+  static const uint8_t id_ml_dsa_65[] = {
+    0x60, 0x86, 0x48, 0x01, 0x65, 0x03, 0x04, 0x03, 0x12
+  };
+
   if (algorithmOID.MatchRest(id_ecPublicKey)) {
     // An id-ecPublicKey AlgorithmIdentifier has a parameter that identifes
     // the curve being used. Although RFC 5480 specifies multiple forms, we
@@ -358,6 +367,27 @@ CheckSubjectPublicKeyInfoContents(Reader& input, TrustDomain& trustDomain,
       Input exponent;
       return der::PositiveInteger(r, exponent);
     });
+    if (rv != Success) {
+      return rv;
+    }
+  } else if (algorithmOID.MatchRest(id_ml_dsa_65)) {
+
+    /* 
+     * The ML-DSA AlgorithmIdentifier is expected to contain only the OID,
+     * with no parameters field present. According to the Internet-Draft 
+     * https://www.ietf.org/archive/id/draft-ietf-lamps-dilithium-certificates-03.html 
+     * (Section 3), the AlgorithmIdentifier for ML-DSA variants must omit the `parameters`
+     * field entirely.
+     * In DER encoding, the absence of the parameters field means that after parsing the
+     * OID, no additional bytes should remain. Checking algorithm.AtEnd() confirms that
+     * this constraint is satisfied and that the structure is correctly encoded.
+     */
+    if (!algorithm.AtEnd()) {
+      return Result::ERROR_BAD_DER;
+    } 
+
+    Input rawPublicKey;
+    rv = subjectPublicKeyReader.SkipToEnd(rawPublicKey);
     if (rv != Success) {
       return rv;
     }
