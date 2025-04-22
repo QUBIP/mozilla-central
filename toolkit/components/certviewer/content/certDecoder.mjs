@@ -7,6 +7,7 @@ import {
   ECNamedCurves,
   ECPublicKey,
   RSAPublicKey,
+  MLDSAPublicKey,
 } from "./vendor/pkijs.js";
 
 const getTimeZone = () => {
@@ -45,6 +46,15 @@ const getPublicKeyInfo = x509 => {
       x, // x coordinate
       y, // y coordinate
       xy: `04:${x}:${y}`, // 04 (uncompressed) public key
+    };
+  }
+  if (publicKey instanceof MLDSAPublicKey) {
+    let keyHex = publicKey.rhoT1.valueBlock.valueHex;
+    let keyBytes = new Uint8Array(keyHex);
+    return {
+      kty: "ML-DSA",
+      keysize: keyBytes.length * 8,
+      rhoT1: hashify(keyHex),
     };
   }
   return { kty: "Unknown" };
@@ -1134,6 +1144,7 @@ const strings = {
     "1.2.840.10045.4.3.2": "ECDSA with SHA-256",
     "1.2.840.10045.4.3.3": "ECDSA with SHA-384",
     "1.2.840.10045.4.3.4": "ECDSA with SHA-512",
+    "2.16.840.1.101.3.4.3.18": "ML-DSA-65",
   },
 
   aia: {

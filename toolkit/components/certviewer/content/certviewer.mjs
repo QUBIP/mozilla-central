@@ -175,6 +175,11 @@ export const adjustCertInformation = cert => {
           createEntryItem("public-value", cert.subjectPublicKeyInfo.xy, true),
           createEntryItem("exponent", cert.subjectPublicKeyInfo.e),
           createEntryItem("modulus", cert.subjectPublicKeyInfo.n, true),
+          createEntryItem(
+            "mldsa-public-value",
+            cert.subjectPublicKeyInfo.rhoT1,
+            true
+          ),
         ].filter(elem => elem != null);
       }
       return items;

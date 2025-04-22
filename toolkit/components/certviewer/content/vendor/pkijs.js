@@ -8611,6 +8611,81 @@ class RSAPublicKey extends PkiObject {
 }
 RSAPublicKey.CLASS_NAME = "RSAPublicKey";
 
+/* @see https://www.ietf.org/archive/id/draft-ietf-lamps-dilithium-certificates-03.html */
+const RHO_T1 = "rhoT1";
+const CLEAR_PROPS_MLDSA = [RHO_T1];
+const MLDSA_MIN_LENGTH = 32; 
+class MLDSAPublicKey extends PkiObject {
+    constructor(parameters = {}) {
+        super();
+
+        this.rhoT1 = getParametersValue(parameters, RHO_T1, MLDSAPublicKey.defaultValues(RHO_T1));
+
+        if (parameters.json) {
+            this.fromJSON(parameters.json);
+        }
+
+        if (parameters.schema) {
+            this.fromSchema(parameters.schema);
+        }
+    }
+
+    static defaultValues(memberName) {
+        switch (memberName) {
+            case RHO_T1:
+                return new BitString();
+            default:
+                return super.defaultValues(memberName);
+        }
+    }
+
+    static schema(parameters = {}) {
+        const names = getParametersValue(parameters, "names", {});
+        return new BitString({ name: names.rhoT1 || RHO_T1 });
+    }
+
+    fromSchema(schema) {
+        clearProps(schema, CLEAR_PROPS_MLDSA);
+
+        const asn1 = compareSchema(schema, schema, MLDSAPublicKey.schema({
+            names: { rhoT1: RHO_T1 }
+        }));
+
+        AsnError.assertSchema(asn1, this.className);
+
+        const bitString = asn1.result.rhoT1;
+        const length = bitString.valueBlock.valueHexView.length;
+
+        if (length < MLDSA_MIN_LENGTH || (length - MLDSA_MIN_LENGTH) % 320 !== 0) {
+            throw new Error(`Invalid ML-DSA key length: ${length} bytes`);
+        }
+
+        this.rhoT1 = bitString;
+    }
+
+    toSchema() {
+        return this.rhoT1;
+    }
+
+    toJSON() {
+        return {
+            rhoT1: Convert.ToBase64Url(this.rhoT1.valueBlock.valueHexView)
+        };
+    }
+
+    fromJSON(json) {
+        ParameterError.assert("json", json, "rhoT1");
+        const rawBuffer = stringToArrayBuffer(fromBase64(json.rhoT1, true));
+
+        if (rawBuffer.byteLength < MLDSA_MIN_LENGTH || (rawBuffer.byteLength - MLDSA_MIN_LENGTH) % 320 !== 0) {
+            throw new Error(`Invalid ML-DSA key length: ${rawBuffer.byteLength} bytes`);
+        }
+
+        this.rhoT1 = new BitString({ valueHex: rawBuffer });
+    }
+}
+MLDSAPublicKey.CLASS_NAME = "MLDSAPublicKey";
+
 const ALGORITHM$1 = "algorithm";
 const SUBJECT_PUBLIC_KEY = "subjectPublicKey";
 const CLEAR_PROPS$1a = [ALGORITHM$1, SUBJECT_PUBLIC_KEY];
@@ -8658,6 +8733,10 @@ class PublicKeyInfo extends PkiObject {
                             }
                         }
                     }
+                    break;
+                case "2.16.840.1.101.3.4.3.18":
+                    /* Already a bitstring */
+                    this._parsedKey = new MLDSAPublicKey({ rhoT1: this.subjectPublicKey });
                     break;
             }
             this._parsedKey || (this._parsedKey = null);
@@ -8726,6 +8805,9 @@ class PublicKeyInfo extends PkiObject {
             case "1.2.840.113549.1.1.1":
                 jwk.kty = "RSA";
                 break;
+            case "2.16.840.1.101.3.4.3.18":
+                jwk.kty = "ML-DSA-65";
+                break;
         }
         const publicKeyJWK = this.parsedKey.toJSON();
         Object.assign(jwk, publicKeyJWK);
@@ -8745,6 +8827,13 @@ class PublicKeyInfo extends PkiObject {
                     this.parsedKey = new RSAPublicKey({ json });
                     this.algorithm = new AlgorithmIdentifier({
                         algorithmId: "1.2.840.113549.1.1.1",
+                        algorithmParams: new Null()
+                    });
+                    break;
+                case "ML-DSA-65":
+                    this.parsedKey = new MLDSAPublicKey({ json });
+                    this.algorithm = new AlgorithmIdentifier({
+                        algorithmId: "2.16.840.1.101.3.4.3.18",
                         algorithmParams: new Null()
                     });
                     break;
@@ -24080,4 +24169,4 @@ function initCryptoEngine() {
 
 initCryptoEngine();
 
-export { AbstractCryptoEngine, AccessDescription, Accuracy, AlgorithmIdentifier, AltName, ArgumentError, AsnError, AttCertValidityPeriod, Attribute, AttributeCertificateInfoV1, AttributeCertificateInfoV2, AttributeCertificateV1, AttributeCertificateV2, AttributeTypeAndValue, AuthenticatedSafe, AuthorityKeyIdentifier, BasicConstraints, BasicOCSPResponse, CAVersion, CRLBag, CRLDistributionPoints, CertBag, CertID, Certificate, CertificateChainValidationEngine, CertificatePolicies, CertificateRevocationList, CertificateSet, CertificateTemplate, CertificationRequest, ChainValidationCode, ChainValidationError, ContentInfo, CryptoEngine, DigestInfo, DistributionPoint, ECCCMSSharedInfo, ECNamedCurves, ECPrivateKey, ECPublicKey, EncapsulatedContentInfo, EncryptedContentInfo, EncryptedData, EnvelopedData, ExtKeyUsage, Extension, ExtensionValueFactory, Extensions, GeneralName, GeneralNames, GeneralSubtree, HASHED_MESSAGE, HASH_ALGORITHM, Holder, InfoAccess, IssuerAndSerialNumber, IssuerSerial, IssuingDistributionPoint, KEKIdentifier, KEKRecipientInfo, KeyAgreeRecipientIdentifier, KeyAgreeRecipientInfo, KeyBag, KeyTransRecipientInfo, MICROS, MILLIS, MacData, MessageImprint, NameConstraints, OCSPRequest, OCSPResponse, ObjectDigestInfo, OriginatorIdentifierOrKey, OriginatorInfo, OriginatorPublicKey, OtherCertificateFormat, OtherKeyAttribute, OtherPrimeInfo, OtherRecipientInfo, OtherRevocationInfoFormat, PBES2Params, PBKDF2Params, PFX, PKCS8ShroudedKeyBag, PKIStatus, PKIStatusInfo, POLICY_IDENTIFIER, POLICY_QUALIFIERS, ParameterError, PasswordRecipientinfo, PkiObject, PolicyConstraints, PolicyInformation, PolicyMapping, PolicyMappings, PolicyQualifierInfo, PrivateKeyInfo, PrivateKeyUsagePeriod, PublicKeyInfo, QCStatement, QCStatements, RDN, RSAESOAEPParams, RSAPrivateKey, RSAPublicKey, RSASSAPSSParams, RecipientEncryptedKey, RecipientEncryptedKeys, RecipientIdentifier, RecipientInfo, RecipientKeyIdentifier, RelativeDistinguishedNames, Request, ResponseBytes, ResponseData, RevocationInfoChoices, RevokedCertificate, SECONDS, SafeBag, SafeBagValueFactory, SafeContents, SecretBag, Signature, SignedAndUnsignedAttributes, SignedCertificateTimestamp, SignedCertificateTimestampList, SignedData, SignedDataVerifyError, SignerInfo, SingleResponse, SubjectDirectoryAttributes, TBSRequest, TSTInfo, TYPE$4 as TYPE, TYPE_AND_VALUES, Time, TimeStampReq, TimeStampResp, TimeType, V2Form, VALUE$5 as VALUE, VALUE_BEFORE_DECODE, checkCA, createCMSECDSASignature, createECDSASignatureFromCMS, engine, getAlgorithmByOID, getAlgorithmParameters, getCrypto, getEngine, getHashAlgorithm, getOIDByAlgorithm, getRandomValues, id_AnyPolicy, id_AuthorityInfoAccess, id_AuthorityKeyIdentifier, id_BaseCRLNumber, id_BasicConstraints, id_CRLBag_X509CRL, id_CRLDistributionPoints, id_CRLNumber, id_CRLReason, id_CertBag_AttributeCertificate, id_CertBag_SDSICertificate, id_CertBag_X509Certificate, id_CertificateIssuer, id_CertificatePolicies, id_ContentType_Data, id_ContentType_EncryptedData, id_ContentType_EnvelopedData, id_ContentType_SignedData, id_ExtKeyUsage, id_FreshestCRL, id_InhibitAnyPolicy, id_InvalidityDate, id_IssuerAltName, id_IssuingDistributionPoint, id_KeyUsage, id_MicrosoftAppPolicies, id_MicrosoftCaVersion, id_MicrosoftCertTemplateV1, id_MicrosoftCertTemplateV2, id_MicrosoftPrevCaCertHash, id_NameConstraints, id_PKIX_OCSP_Basic, id_PolicyConstraints, id_PolicyMappings, id_PrivateKeyUsagePeriod, id_QCStatements, id_SignedCertificateTimestampList, id_SubjectAltName, id_SubjectDirectoryAttributes, id_SubjectInfoAccess, id_SubjectKeyIdentifier, id_ad, id_ad_caIssuers, id_ad_ocsp, id_eContentType_TSTInfo, id_pkix, id_sha1, id_sha256, id_sha384, id_sha512, kdf, setEngine, stringPrep, verifySCTsForCertificate };
+export { AbstractCryptoEngine, AccessDescription, Accuracy, AlgorithmIdentifier, AltName, ArgumentError, AsnError, AttCertValidityPeriod, Attribute, AttributeCertificateInfoV1, AttributeCertificateInfoV2, AttributeCertificateV1, AttributeCertificateV2, AttributeTypeAndValue, AuthenticatedSafe, AuthorityKeyIdentifier, BasicConstraints, BasicOCSPResponse, CAVersion, CRLBag, CRLDistributionPoints, CertBag, CertID, Certificate, CertificateChainValidationEngine, CertificatePolicies, CertificateRevocationList, CertificateSet, CertificateTemplate, CertificationRequest, ChainValidationCode, ChainValidationError, ContentInfo, CryptoEngine, DigestInfo, DistributionPoint, ECCCMSSharedInfo, ECNamedCurves, ECPrivateKey, ECPublicKey, EncapsulatedContentInfo, EncryptedContentInfo, EncryptedData, EnvelopedData, ExtKeyUsage, Extension, ExtensionValueFactory, Extensions, GeneralName, GeneralNames, GeneralSubtree, HASHED_MESSAGE, HASH_ALGORITHM, Holder, InfoAccess, IssuerAndSerialNumber, IssuerSerial, IssuingDistributionPoint, KEKIdentifier, KEKRecipientInfo, KeyAgreeRecipientIdentifier, KeyAgreeRecipientInfo, KeyBag, KeyTransRecipientInfo, MICROS, MILLIS, MacData, MessageImprint, NameConstraints, OCSPRequest, OCSPResponse, ObjectDigestInfo, OriginatorIdentifierOrKey, OriginatorInfo, OriginatorPublicKey, OtherCertificateFormat, OtherKeyAttribute, OtherPrimeInfo, OtherRecipientInfo, OtherRevocationInfoFormat, PBES2Params, PBKDF2Params, PFX, PKCS8ShroudedKeyBag, PKIStatus, PKIStatusInfo, POLICY_IDENTIFIER, POLICY_QUALIFIERS, ParameterError, PasswordRecipientinfo, PkiObject, PolicyConstraints, PolicyInformation, PolicyMapping, PolicyMappings, PolicyQualifierInfo, PrivateKeyInfo, PrivateKeyUsagePeriod, PublicKeyInfo, QCStatement, QCStatements, RDN, RSAESOAEPParams, RSAPrivateKey, RSAPublicKey, RSASSAPSSParams, RecipientEncryptedKey, RecipientEncryptedKeys, RecipientIdentifier, RecipientInfo, RecipientKeyIdentifier, RelativeDistinguishedNames, Request, ResponseBytes, ResponseData, RevocationInfoChoices, RevokedCertificate, SECONDS, SafeBag, SafeBagValueFactory, SafeContents, SecretBag, Signature, SignedAndUnsignedAttributes, SignedCertificateTimestamp, SignedCertificateTimestampList, SignedData, SignedDataVerifyError, SignerInfo, SingleResponse, SubjectDirectoryAttributes, TBSRequest, TSTInfo, TYPE$4 as TYPE, TYPE_AND_VALUES, Time, TimeStampReq, TimeStampResp, TimeType, V2Form, VALUE$5 as VALUE, VALUE_BEFORE_DECODE, checkCA, createCMSECDSASignature, createECDSASignatureFromCMS, engine, getAlgorithmByOID, getAlgorithmParameters, getCrypto, getEngine, getHashAlgorithm, getOIDByAlgorithm, getRandomValues, id_AnyPolicy, id_AuthorityInfoAccess, id_AuthorityKeyIdentifier, id_BaseCRLNumber, id_BasicConstraints, id_CRLBag_X509CRL, id_CRLDistributionPoints, id_CRLNumber, id_CRLReason, id_CertBag_AttributeCertificate, id_CertBag_SDSICertificate, id_CertBag_X509Certificate, id_CertificateIssuer, id_CertificatePolicies, id_ContentType_Data, id_ContentType_EncryptedData, id_ContentType_EnvelopedData, id_ContentType_SignedData, id_ExtKeyUsage, id_FreshestCRL, id_InhibitAnyPolicy, id_InvalidityDate, id_IssuerAltName, id_IssuingDistributionPoint, id_KeyUsage, id_MicrosoftAppPolicies, id_MicrosoftCaVersion, id_MicrosoftCertTemplateV1, id_MicrosoftCertTemplateV2, id_MicrosoftPrevCaCertHash, id_NameConstraints, id_PKIX_OCSP_Basic, id_PolicyConstraints, id_PolicyMappings, id_PrivateKeyUsagePeriod, id_QCStatements, id_SignedCertificateTimestampList, id_SubjectAltName, id_SubjectDirectoryAttributes, id_SubjectInfoAccess, id_SubjectKeyIdentifier, id_ad, id_ad_caIssuers, id_ad_ocsp, id_eContentType_TSTInfo, id_pkix, id_sha1, id_sha256, id_sha384, id_sha512, kdf, setEngine, stringPrep, verifySCTsForCertificate, MLDSAPublicKey };

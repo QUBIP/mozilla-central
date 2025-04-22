@@ -47,6 +47,7 @@ certificate-viewer-organizational-unit = Organizational Unit
 certificate-viewer-policy = Policy
 certificate-viewer-protocol = Protocol
 certificate-viewer-public-value = Public Value
+certificate-viewer-mldsa-public-value = Public Value
 certificate-viewer-purposes = Purposes
 certificate-viewer-qualifier = Qualifier
 certificate-viewer-qualifiers = Qualifiers
